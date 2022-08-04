@@ -1,0 +1,172 @@
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements. See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership. The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License. You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied. See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
+<project name="pa3" default="pa3" basedir=".">
+
+  <description>Programming Assignment 3</description>
+
+  <property environment="env"/>
+
+  <property name="src" location="src" />
+  <property name="gen" location="gen-java" />
+  <property name="build" location="build" />
+
+  <path id="libs.classpath">
+    <fileset dir="${env.THRIFT_LIB_PATH}">
+      <include name="libthrift*.jar" />
+      <exclude name="libthrift*test.jar" />
+      <exclude name="libthrift*javadoc.jar" />
+      <exclude name="libthrift*sources.jar" />
+    </fileset>
+    <fileset dir="${env.THRIFT_LIB_PATH}/../deps">
+      <include name="*.jar" />
+    </fileset>
+  </path>
+  <path id="build.classpath">
+    <path refid="libs.classpath" />
+    <pathelement path="${gen}" />
+  </path>
+  <path id="pa3.classpath">
+    <path refid="build.classpath" />
+    <pathelement path="${build}" />
+    <pathelement path="pa3.jar" />
+  </path>
+
+  <target name="init">
+    <tstamp />
+    <mkdir dir="${build}"/>
+    <mkdir dir="${build}/log"/>
+  </target>
+
+  <target name="compile" depends="init, generate">
+    <javac compiler="modern" includeantruntime="false" srcdir="${gen}" destdir="${build}" classpathref="libs.classpath" />
+    <javac compiler="modern" includeantruntime="false" srcdir="${src}" destdir="${build}" classpathref="build.classpath" />
+  </target>
+
+  <target name="test" depends="pa3" />
+
+  <target name="pa3" description="Run Programming Assignment 3" depends="compile">
+    <jar jarfile="pa3.jar" basedir="${build}"/>
+    <parallel>
+      <sequential>
+        <java classname="Coordinator" fork="true" classpathref="pa3.classpath" failonerror="false" output="${build}/log/coordinator.log">
+          <arg line="4 4 7"/>
+        </java>
+      </sequential>
+      <sequential>
+        <java classname="FileServer" fork="true" classpathref="pa3.classpath" failonerror="false" output="${build}/log/fsnode.log">
+          <arg line="9092"/>
+        </java>
+        <java classname="FileServer" fork="true" classpathref="pa3.classpath" failonerror="false" output="${build}/log/fsnode.log">
+          <arg line="9094"/>
+        </java>
+        <java classname="FileServer" fork="true" classpathref="pa3.classpath" failonerror="false" output="${build}/log/fsnode.log">
+          <arg line="9096"/>
+        </java>
+        <java classname="FileServer" fork="true" classpathref="pa3.classpath" failonerror="false" output="${build}/log/fsnode.log">
+          <arg line="9098"/>
+        </java>
+        <java classname="FileServer" fork="true" classpathref="pa3.classpath" failonerror="false" output="${build}/log/fsnode.log">
+          <arg line="9100"/>
+        </java>
+        <java classname="FileServer" fork="true" classpathref="pa3.classpath" failonerror="false" output="${build}/log/fsnode.log">
+          <arg line="9102"/>
+        </java>
+        <java classname="FileServer" fork="true" classpathref="pa3.classpath" failonerror="false" output="${build}/log/fsnode.log">
+          <arg line="9104"/>
+        </java>
+      </sequential>
+    </parallel>
+    <sequential>
+      <echo>Beginning to run multiple clients in parallel (total 10 operations):-</echo>
+      <echo/>
+      <parallel>
+        <echo>Running client 1 (read-heavy):</echo>
+        <java classname="Client" classpathref="pa3.classpath" failonerror="true">
+          <arg line="0 10"/>
+        </java>
+        <echo>Running client 2 (write-heavy):</echo>
+        <java classname="Client" classpathref="pa3.classpath" failonerror="true">
+          <arg line="1 10"/>
+        </java>
+        <echo>Running client 3 (balanced load):</echo>
+        <java classname="Client" classpathref="pa3.classpath" failonerror="true">
+          <arg line="2 10"/>
+        </java>
+      </parallel>
+      <echo>Running client 4 (get state of filesystem):</echo>
+      <java classname="Client" classpathref="pa3.classpath" failonerror="true">
+        <arg line="3 10"/>
+      </java>
+    </sequential>
+
+  </target>
+
+  <target name="generate">
+    <!-- Generate the thrift gen-java source -->
+    <exec executable="../../thrift-0.15.0/compiler/cpp/thrift" failonerror="true">
+      <arg line="--gen java -r  ../coordinator.thrift"/>
+    </exec>
+    <exec executable="../../thrift-0.15.0/compiler/cpp/thrift" failonerror="true">
+      <arg line="--gen java -r  ../fsnode.thrift"/>
+    </exec>
+  </target>
+
+  <target name="client" description="Run multiple clients" depends="compile">
+    <echo>This task will run four clients with different read/write workload in parallel.</echo>
+    <sequential>
+      <parallel>
+        <echo>Running client 1 (read-heavy):</echo>
+        <java classname="Client" classpathref="pa3.classpath" failonerror="true">
+          <arg line="0 ${numberOfOps}"/>
+        </java>
+        <echo>Running client 2 (write-heavy):</echo>
+        <java classname="Client" classpathref="pa3.classpath" failonerror="true">
+          <arg line="1 ${numberOfOps}"/>
+        </java>
+        <echo>Running client 3 (balanced load):</echo>
+        <java classname="Client" classpathref="pa3.classpath" failonerror="true">
+          <arg line="2 ${numberOfOps}"/>
+        </java>
+      </parallel>
+      <echo>Running client 4 (get state of filesystem):</echo>
+      <java classname="Client" classpathref="pa3.classpath" failonerror="true">
+        <arg line="3 ${numberOfOps}"/>
+      </java>
+    </sequential>
+  </target>
+
+  <target name="coordinator" description="Run the coordinator node" depends="compile">
+    <java classname="Coordinator" fork="true" classpathref="pa3.classpath" failonerror="true" output="${build}/log/coordinator.log">
+      <arg line="${nR} ${nW} ${nTotal}"/>
+    </java>
+  </target>
+
+  <target name="fsnode" description="Run a fileserver node" depends="compile">
+    <java classname="FileServer" fork="true" classpathref="pa3.classpath" failonerror="true" output="${build}/log/fsnode.log">
+      <arg line="${port}"/>
+    </java>
+  </target>
+
+  <target name="clean">
+    <delete dir="${build}" />
+    <delete dir="${gen}"/>
+    <delete file="pa3.jar" />
+  </target>
+
+</project>
